@@ -1,4 +1,5 @@
 import io
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import permissions, status, viewsets, filters, parsers
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -96,3 +97,19 @@ class CSVUploadView(APIView):
         
         result = procesar_csv(file_obj)
         return Response(result, status=status.HTTP_200_OK)
+
+# Logout endpoint
+class LogoutView(APIView):
+    """Invalidate a refresh token (logout)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response({'error': 'Refresh token required.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response(status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
