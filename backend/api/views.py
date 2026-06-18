@@ -108,8 +108,17 @@ class LogoutView(APIView):
         if not refresh_token:
             return Response({'error': 'Refresh token required.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
+            # Attempt to blacklist using built‑in method (available when token_blacklist app is installed)
             token = RefreshToken(refresh_token)
             token.blacklist()
             return Response(status=status.HTTP_205_RESET_CONTENT)
+        except AttributeError:
+            # Fallback for older SimpleJWT versions – manually delete the token record
+            from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
+            try:
+                OutstandingToken.objects.filter(token=refresh_token).delete()
+                return Response(status=status.HTTP_205_RESET_CONTENT)
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
