@@ -21,5 +21,10 @@ class Prospecto(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        verbose_name = 'Prospecto'
+        verbose_name_plural = 'Prospectos'
+        ordering = ['-creado_en']
+
     def __str__(self):
         return f"{self.nombre} ({self.email})"

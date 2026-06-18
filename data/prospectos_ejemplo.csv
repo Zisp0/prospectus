@@ -1,0 +1,9 @@
+documento,nombre,correo,fecha
+10000001,Ana Torres,ana.torres@email.com,1990-05-20
+10000002,Carlos Ruiz,carlos.ruiz@email.com,1985-11-03
+10000003,María González,maria.gonzalez@email.com,1993-07-14
+10000004,Luis Herrera,luis.herrera@email.com,1988-02-28
+10000005,Sara Medina,sara.medina@email.com,1995-09-10
+10000001,Ana Torres,ana.torres@email.com,1990-05-20
+10000006,Pedro Sin Correo,,1991-04-01
+10000007,Sin Documento,,correo-invalido,2000-01-01
