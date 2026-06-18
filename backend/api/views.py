@@ -19,6 +19,10 @@ class MeView(APIView):
         serializer = UsuarioSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+from .serializers import UsuarioSerializer, RegisterSerializer, ProspectoSerializer
+from .models import Prospecto
+from rest_framework import viewsets, filters
+
 class RegisterView(APIView):
     """Endpoint for user registration (name, email, password)."""
     permission_classes = [permissions.AllowAny]
@@ -32,3 +36,12 @@ class RegisterView(APIView):
             "email": user.email,
             "name": user.username,
         }, status=status.HTTP_201_CREATED)
+class ProspectoViewSet(viewsets.ModelViewSet):
+    """CRUD API for Prospecto with search & ordering filters."""
+    queryset = Prospecto.objects.all()
+    serializer_class = ProspectoSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['documento', 'nombre', 'email']
+    ordering_fields = ['documento', 'nombre', 'fecha', 'creado_en']
+    ordering = ['-creado_en']
