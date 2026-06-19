@@ -4,6 +4,8 @@ import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Prospects from './pages/Prospects';
+import LoadCSV from './pages/LoadCSV';
 
 function App() {
   return (
@@ -13,6 +15,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route element={<PrivateRoute />}>
             <Route path="/" element={<Home />} />
+            <Route path="/prospectos" element={<Prospects />} />
+            <Route path="/carga-csv" element={<LoadCSV />} />
           </Route>
         </Routes>
       </Router>

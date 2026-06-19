@@ -1,19 +1,12 @@
-import React, { useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
 import AuthContext from '../context/AuthContext';
+import LogoMark from '../components/LogoMark';
 
 /* ──────────────────────────────────────────
    SVG ICONS — Lucide‑style, 1.5px stroke
    ────────────────────────────────────────── */
-
-const LogoMark = () => (
-  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect width="32" height="32" rx="8" fill="#4F46E5" />
-    <path d="M10 16L14 20L22 12" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
 
 const MailIcon = ({ className }) => (
   <svg className={className} xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -72,26 +65,31 @@ const DecorativeCircles = () => (
   </svg>
 );
 
-const Login = () => {
-  const { login } = React.useContext(AuthContext);
+  const Login = () => {
   const navigate = useNavigate();
+  const { login, user } = useContext(AuthContext);
   const [showPassword, setShowPassword] = useState(false);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm();
 
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    }
+  }, [user, navigate]);
+
   const onSubmit = async (data) => {
     try {
       await login(data.email, data.password);
-      toast.success('Welcome!');
       navigate('/');
     } catch (e) {
-      toast.error('Invalid credentials');
+      // AuthContext muestra la alerta de error.
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* LEFT PANEL */}
+    <div className="flex min-h-screen bg-gray-50">
+      {/* PANEL IZQUIERDO */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col items-center justify-center p-12 bg-indigo-600">
         <DecorativeCircles />
         <div className="relative z-10 flex flex-col items-center text-center max-w-md">
@@ -101,12 +99,12 @@ const Login = () => {
             </div>
             <span className="text-xl font-semibold text-white">Prospectus</span>
           </div>
-          <h1 className="text-4xl font-bold mb-4 text-white">Manage your prospects<br />with clarity</h1>
+          <h1 className="text-4xl font-bold mb-4 text-white">Gestiona tus prospectos<br />con claridad</h1>
           <p className="text-base opacity-80 max-w-sm text-white">
-            Streamline your workflow, track progress, and make data‑driven decisions — all in one place.
+            Optimiza tu flujo de trabajo, haz seguimiento del progreso y toma decisiones basadas en datos — todo en un solo lugar.
           </p>
           <div className="flex flex-wrap justify-center gap-3 mt-10">
-            {['CSV Upload', 'Real‑time Reports', 'Secure Auth'].map((feature) => (
+            {['Carga CSV', 'Reportes en tiempo real', 'Autenticación segura'].map((feature) => (
               <span key={feature} className="px-4 py-2 rounded-full text-sm font-medium bg-white/10 text-white backdrop-blur-sm">
                 {feature}
               </span>
@@ -116,56 +114,56 @@ const Login = () => {
         <p className="absolute bottom-6 text-xs opacity-50 text-white">&copy; {new Date().getFullYear()} Prospectus</p>
       </div>
 
-      {/* RIGHT PANEL (FORM) */}
+      {/* PANEL DERECHO (FORMULARIO) */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-8 lg:p-12">
-        <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-lg shadow-md p-8">
-          {/* Mobile header */}
+        <div className="w-full max-w-sm bg-white rounded-lg shadow-md p-8">
+          {/* Encabezado móvil */}
           <div className="flex items-center gap-2.5 mb-10 lg:hidden">
             <LogoMark />
-            <span className="text-lg font-semibold text-gray-800 dark:text-gray-200">Prospectus</span>
+            <span className="text-lg font-semibold text-gray-800">Prospectus</span>
           </div>
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold mb-1.5 text-gray-800 dark:text-gray-100">Welcome back</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Sign in to your account to continue</p>
+            <h2 className="text-2xl font-semibold mb-1.5 text-gray-800">Bienvenido de nuevo</h2>
+            <p className="text-sm text-gray-600">Inicia sesión en tu cuenta para continuar</p>
           </div>
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
-            {/* Email */}
+            {/* Correo */}
             <div>
-              <label htmlFor="email" className="block text-xs font-semibold uppercase mb-2 text-gray-600 dark:text-gray-400">Email address</label>
+              <label htmlFor="email" className="block text-xs font-semibold uppercase mb-2 text-gray-600">Correo electrónico</label>
               <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-500"><MailIcon /></span>
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"><MailIcon /></span>
                 <input
                   id="email"
                   type="email"
                   autoComplete="email"
                   autoFocus
-                  placeholder="you@company.com"
-                  {...register('email', { required: 'Email is required', pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email' } })}
-                  className="w-full rounded-lg py-3 pl-11 pr-4 text-sm border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                  placeholder="tu@empresa.com"
+                  {...register('email', { required: 'El correo es obligatorio', pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Ingresa un correo válido' } })}
+                  className="w-full rounded-lg py-3 pl-11 pr-4 text-sm border border-gray-300 bg-gray-100 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                 />
               </div>
-              {errors.email && <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">{errors.email.message}</p>}
+              {errors.email && <p className="mt-1.5 text-xs text-red-600">{errors.email.message}</p>}
             </div>
-            {/* Password */}
+            {/* Contraseña */}
             <div>
-              <label htmlFor="password" className="block text-xs font-semibold uppercase mb-2 text-gray-600 dark:text-gray-400">Password</label>
+              <label htmlFor="password" className="block text-xs font-semibold uppercase mb-2 text-gray-600">Contraseña</label>
               <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-500"><LockIcon /></span>
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"><LockIcon /></span>
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'Minimum 6 characters' } })}
-                  className="w-full rounded-lg py-3 pl-11 pr-11 text-sm border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                  {...register('password', { required: 'La contraseña es obligatoria', minLength: { value: 6, message: 'Mínimo 6 caracteres' } })}
+                  className="w-full rounded-lg py-3 pl-11 pr-11 text-sm border border-gray-300 bg-gray-100 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 dark:text-gray-400" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
                   {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
-              {errors.password && <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">{errors.password.message}</p>}
+              {errors.password && <p className="mt-1.5 text-xs text-red-600">{errors.password.message}</p>}
             </div>
-            {/* Submit */}
+            {/* Botón de envío */}
             <div>
               <button
                 type="submit"
@@ -173,11 +171,11 @@ const Login = () => {
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 text-white disabled:opacity-50 transition"
               >
                 {isSubmitting && <Spinner />}
-                {isSubmitting ? 'Signing in…' : 'Sign in'}
+                {isSubmitting ? 'Iniciando sesión…' : 'Iniciar sesión'}
               </button>
             </div>
           </form>
-          <p className="mt-12 text-center text-xs text-gray-500 dark:text-gray-400">Secured with end‑to‑end encryption</p>
+          <p className="mt-12 text-center text-xs text-gray-500">Protegido con cifrado de extremo a extremo</p>
         </div>
       </div>
     </div>
