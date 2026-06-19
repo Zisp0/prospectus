@@ -5,6 +5,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.utils import timezone
+from django.db.models import Count
+from django.db.models.functions import TruncDate
 
 from .models import Prospecto
 from .serializers import (
@@ -122,3 +125,51 @@ class LogoutView(APIView):
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class StatsView(APIView):
+    """Endpoint for dashboard statistics."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        today = timezone.now().date()
+        total = Prospecto.objects.count()
+        today_count = Prospecto.objects.filter(creado_en__date=today).count()
+
+        last5_qs = Prospecto.objects.order_by('-creado_en')[:5]
+        last5 = [
+            {
+                "id": p.id,
+                "documento": p.documento,
+                "nombre": p.nombre,
+                "email": p.email,
+                "creado_en": p.creado_en,
+            }
+            for p in last5_qs
+        ]
+
+        # prospects per day for last 7 days
+        start_date = today - timezone.timedelta(days=6)
+        per_day = (
+            Prospecto.objects.filter(creado_en__date__gte=start_date)
+            .annotate(day=TruncDate('creado_en'))
+            .values('day')
+            .annotate(count=Count('id'))
+            .order_by('day')
+        )
+        # ensure all days present
+        stats_by_day = {}
+        for i in range(7):
+            day = (start_date + timezone.timedelta(days=i)).isoformat()
+            stats_by_day[day] = 0
+        for entry in per_day:
+            stats_by_day[entry['day'].isoformat()] = entry['count']
+
+        return Response(
+            {
+                "total_prospectos": total,
+                "prospectos_hoy": today_count,
+                "ultimos_5_prospectos": last5,
+                "prospectos_por_dia": stats_by_day,
+            },
+            status=status.HTTP_200_OK,
+        )

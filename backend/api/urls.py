@@ -8,8 +8,8 @@ from .views import (
     LogoutView,
     ProspectoViewSet,
     CSVUploadView,
+    StatsView,
 )
-
 router = DefaultRouter()
 router.register(r'prospectos', ProspectoViewSet, basename='prospecto')
 
@@ -21,6 +21,8 @@ urlpatterns = [
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('auth/logout/', LogoutView.as_view(), name='logout'),
     path('prospectos/upload/', CSVUploadView.as_view(), name='upload_csv'),
+    # Dashboard stats endpoint
+    path('dashboard/stats/', StatsView.as_view(), name='dashboard_stats'),
     # API router for Prospecto CRUD
     path('', include(router.urls)),
 ]
