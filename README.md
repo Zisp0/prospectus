@@ -122,7 +122,7 @@ prospectus/
 ### 1. Clonar el repositorio
 
 ```bash
-git clone <url-del-repositorio>
+git clone https://github.com/Zisp0/prospectus.git
 cd prospectus
 ```
 
