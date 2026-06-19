@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from .views import (
     CustomTokenObtainPairView,
     TokenRefreshView,
@@ -20,11 +21,14 @@ urlpatterns = [
     path('auth/me/', MeView.as_view(), name='me'),
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('auth/logout/', LogoutView.as_view(), name='logout'),
-    path('prospectos/upload/', CSVUploadView.as_view(), name='upload_csv'),
     # Dashboard stats endpoint
     path('dashboard/stats/', StatsView.as_view(), name='dashboard_stats'),
     # API router for Prospecto CRUD
     path('', include(router.urls)),
+    path('prospectos/upload/', CSVUploadView.as_view(), name='upload_csv'),
+    #Swagger endpoint
+    path('schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]
 
 

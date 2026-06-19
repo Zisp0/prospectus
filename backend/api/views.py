@@ -11,6 +11,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.utils import timezone
 from django.db.models import Count
 from django.db.models.functions import TruncDate
+from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
+from rest_framework import serializers as drf_serializers
 
 from .models import Prospecto
 from .serializers import (
@@ -37,15 +39,40 @@ class OctetStreamParser(parsers.BaseParser):
     def parse(self, stream, media_type=None, parser_context=None):
         return stream.read()
 
-
+@extend_schema(
+    description="Autentica al usuario con email y contraseña. Retorna tokens JWT de acceso y refresco junto con los datos del usuario.",
+    request=CustomTokenObtainPairSerializer,
+    responses={
+        200: inline_serializer(
+            name="LoginResponse",
+            fields={
+                "access": drf_serializers.CharField(),
+                "refresh": drf_serializers.CharField(),
+                "user": inline_serializer(
+                    name="LoginUserData",
+                    fields={
+                        "id": drf_serializers.IntegerField(),
+                        "email": drf_serializers.EmailField(),
+                        "name": drf_serializers.CharField(),
+                    }
+                ),
+            }
+        ),
+        401: OpenApiResponse(description="Credenciales incorrectas o cuenta inactiva."),
+    }
+)
 class CustomTokenObtainPairView(TokenObtainPairView):
-    """Login endpoint – returns JWT access and refresh tokens along with user data."""
     serializer_class = CustomTokenObtainPairSerializer
     permission_classes = [permissions.AllowAny]
 
-
+@extend_schema(
+    description="Retorna la información del usuario con sesión activa. Verifica que el token no esté en la blacklist.",
+    responses={
+        200: UsuarioSerializer,
+        401: OpenApiResponse(description="Token no proporcionado, inválido o en blacklist."),
+    }
+)
 class MeView(APIView):
-    """GET /api/me/ – returns authenticated user's data."""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
@@ -56,9 +83,22 @@ class MeView(APIView):
         serializer = UsuarioSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
+@extend_schema(
+    description="Crea un nuevo usuario con nombre, email y contraseña.",
+    request=RegisterSerializer,
+    responses={
+        201: inline_serializer(
+            name="RegisterResponse",
+            fields={
+                "id": drf_serializers.IntegerField(),
+                "email": drf_serializers.EmailField(),
+                "name": drf_serializers.CharField(),
+            }
+        ),
+        400: OpenApiResponse(description="Datos inválidos o email ya registrado."),
+    }
+)
 class RegisterView(APIView):
-    """Endpoint for user registration (name, email, password)."""
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
@@ -86,8 +126,36 @@ class ProspectoViewSet(viewsets.ModelViewSet):
     ordering_fields = ['documento', 'nombre', 'fecha', 'creado_en']
 
 
+@extend_schema(
+    description=(
+        "Recibe un archivo CSV y crea prospectos en masa. "
+        "Valida formato, detecta duplicados y retorna un reporte detallado del procesamiento. "
+        "Acepta multipart/form-data (campo `file`), CSV crudo o bytes en el body."
+    ),
+    request={
+        "multipart/form-data": inline_serializer(
+            name="CSVUploadRequest",
+            fields={"file": drf_serializers.FileField()}
+        )
+    },
+    responses={
+        200: inline_serializer(
+            name="CSVUploadResponse",
+            fields={
+                "total_procesados": drf_serializers.IntegerField(),
+                "exitosos": drf_serializers.IntegerField(),
+                "rechazados": drf_serializers.IntegerField(),
+                "duplicados": drf_serializers.IntegerField(),
+                "detalle_exitosos": drf_serializers.ListField(),
+                "detalle_rechazados": drf_serializers.ListField(),
+                "detalle_duplicados": drf_serializers.ListField(),
+            }
+        ),
+        400: OpenApiResponse(description="No se envió ningún archivo."),
+        401: OpenApiResponse(description="Token no proporcionado o inválido."),
+    }
+)
 class CSVUploadView(APIView):
-    """Upload a CSV file to bulk‑create Prospecto objects."""
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, CSVParser, OctetStreamParser]
 
@@ -108,9 +176,22 @@ class CSVUploadView(APIView):
         result = procesar_csv(file_obj)
         return Response(result, status=status.HTTP_200_OK)
 
-# Logout endpoint
+@extend_schema(
+    description=(
+        "Invalida el refresh token enviado y agrega el access token actual a la blacklist. "
+        "Tras este llamado ambos tokens quedan inutilizables."
+    ),
+    request=inline_serializer(
+        name="LogoutRequest",
+        fields={"refresh": drf_serializers.CharField()}
+    ),
+    responses={
+        205: OpenApiResponse(description="Logout exitoso. Tokens invalidados."),
+        400: OpenApiResponse(description="Refresh token no proporcionado o inválido."),
+        401: OpenApiResponse(description="Access token no proporcionado o inválido."),
+    }
+)
 class LogoutView(APIView):
-    """Invalidate a refresh token (logout)."""
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
@@ -145,8 +226,39 @@ class LogoutView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+@extend_schema(
+    description=(
+        "Retorna métricas generales de prospectos: total registrados, "
+        "cuántos ingresaron hoy, los últimos 5 creados y un conteo "
+        "por día de los últimos 7 días."
+    ),
+    responses={
+        200: inline_serializer(
+            name="StatsResponse",
+            fields={
+                "total_prospectos": drf_serializers.IntegerField(),
+                "prospectos_hoy": drf_serializers.IntegerField(),
+                "ultimos_5_prospectos": inline_serializer(
+                    name="UltimoProspecto",
+                    many=True,
+                    fields={
+                        "id": drf_serializers.IntegerField(),
+                        "documento": drf_serializers.CharField(),
+                        "nombre": drf_serializers.CharField(),
+                        "email": drf_serializers.EmailField(),
+                        "creado_en": drf_serializers.DateTimeField(),
+                    }
+                ),
+                "prospectos_por_dia": drf_serializers.DictField(
+                    child=drf_serializers.IntegerField(),
+                    help_text="Claves: fechas ISO (YYYY-MM-DD). Valores: cantidad de prospectos creados ese día."
+                ),
+            }
+        ),
+        401: OpenApiResponse(description="Token no proporcionado o inválido."),
+    }
+)
 class StatsView(APIView):
-    """Endpoint for dashboard statistics."""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
