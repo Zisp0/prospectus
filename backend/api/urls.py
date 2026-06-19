@@ -24,8 +24,8 @@ urlpatterns = [
     # Dashboard stats endpoint
     path('dashboard/stats/', StatsView.as_view(), name='dashboard_stats'),
     # API router for Prospecto CRUD
-    path('', include(router.urls)),
     path('prospectos/upload/', CSVUploadView.as_view(), name='upload_csv'),
+    path('', include(router.urls)),
     #Swagger endpoint
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
