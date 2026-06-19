@@ -1,6 +1,9 @@
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
+from rest_framework_simplejwt.tokens import AccessToken
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from api.models import Usuario, Prospecto
 
 
@@ -9,6 +12,7 @@ class UserAuthTests(APITestCase):
         self.register_url = reverse('register')
         self.token_url = reverse('token_obtain_pair')
         self.me_url = reverse('me')
+        self.logout_url = reverse('logout')
         self.user_data = {
             'username': 'testuser',
             'email': 'testuser@scala.com',
@@ -55,6 +59,49 @@ class UserAuthTests(APITestCase):
         response = self.client.get(self.me_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['email'], self.user_data['email'])
+
+    def test_get_me_rejects_blacklisted_token(self):
+        user = Usuario.objects.create_user(
+            username=self.user_data['username'],
+            email=self.user_data['email'],
+            password=self.user_data['password']
+        )
+        token = AccessToken.for_user(user)
+        outstanding_token = OutstandingToken.objects.create(
+            user=user,
+            jti=token['jti'],
+            token=str(token),
+            created_at=timezone.now(),
+            expires_at=timezone.now() + token.lifetime,
+        )
+        BlacklistedToken.objects.create(token=outstanding_token)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {str(token)}')
+        response = self.client.get(self.me_url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.data['detail'], 'Token is blacklisted.')
+
+    def test_logout_blacklists_access_token_for_me_endpoint(self):
+        Usuario.objects.create_user(
+            username=self.user_data['username'],
+            email=self.user_data['email'],
+            password=self.user_data['password']
+        )
+        login_response = self.client.post(self.token_url, {
+            'email': self.user_data['email'],
+            'password': self.user_data['password']
+        })
+        access_token = login_response.data['access']
+        refresh_token = login_response.data['refresh']
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access_token}')
+        logout_response = self.client.post(self.logout_url, {'refresh': refresh_token})
+        self.assertEqual(logout_response.status_code, status.HTTP_205_RESET_CONTENT)
+
+        response = self.client.get(self.me_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.data['detail'], 'Token is blacklisted.')
 
     def test_get_me_unauthenticated(self):
         response = self.client.get(self.me_url)

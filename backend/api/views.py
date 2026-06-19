@@ -1,5 +1,8 @@
 import io
+from datetime import datetime, timezone as datetime_timezone
+
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework import permissions, status, viewsets, filters, parsers
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -46,6 +49,10 @@ class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
+        token_jti = request.auth.get('jti') if request.auth else None
+        if token_jti and BlacklistedToken.objects.filter(token__jti=token_jti).exists():
+            return Response({'detail': 'Token is blacklisted.'}, status=status.HTTP_401_UNAUTHORIZED)
+
         serializer = UsuarioSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -114,10 +121,22 @@ class LogoutView(APIView):
             # Attempt to blacklist using built‑in method (available when token_blacklist app is installed)
             token = RefreshToken(refresh_token)
             token.blacklist()
+            access_jti = request.auth.get('jti') if request.auth else None
+            access_exp = request.auth.get('exp') if request.auth else None
+            if access_jti and access_exp:
+                outstanding_access_token, _ = OutstandingToken.objects.get_or_create(
+                    jti=access_jti,
+                    defaults={
+                        'user': request.user,
+                        'token': str(request.auth),
+                        'created_at': timezone.now(),
+                        'expires_at': datetime.fromtimestamp(access_exp, tz=datetime_timezone.utc),
+                    },
+                )
+                BlacklistedToken.objects.get_or_create(token=outstanding_access_token)
             return Response(status=status.HTTP_205_RESET_CONTENT)
         except AttributeError:
             # Fallback for older SimpleJWT versions – manually delete the token record
-            from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
             try:
                 OutstandingToken.objects.filter(token=refresh_token).delete()
                 return Response(status=status.HTTP_205_RESET_CONTENT)
